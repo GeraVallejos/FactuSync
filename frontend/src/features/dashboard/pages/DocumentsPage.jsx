@@ -4,7 +4,7 @@ import { DocumentUploadCard, DocumentsSection, FeedbackBanner, MetricsOverview }
 
 export function DocumentsPage() {
   const fileRef = useRef(null);
-  const { activeDocumentId, busy, dashboard, documents, feedback, importDocument, reprocessDocument } =
+  const { activeDocumentId, busy, dashboard, deleteDocument, documents, feedback, importDocument, reprocessDocument } =
     useWorkspaceContext();
 
   const processedCount = useMemo(
@@ -26,6 +26,7 @@ export function DocumentsPage() {
           activeDocumentId={activeDocumentId}
           busy={busy}
           documents={documents}
+          onDeleteDocument={deleteDocument}
           onReprocess={reprocessDocument}
         />
       </section>

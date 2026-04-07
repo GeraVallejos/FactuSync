@@ -1,22 +1,29 @@
+import { AlertCircle, CheckCircle2, FileText } from "lucide-react";
 import { MetricCard } from "@shared/ui";
 
 export function MetricsOverview({ dashboard, processedCount }) {
   return (
-    <section className="mb-6 grid gap-4 md:grid-cols-3">
+    <section className="mb-8 grid gap-6 md:grid-cols-3">
       <MetricCard
         label="Total documentos"
         value={dashboard?.totalDocuments ?? 0}
-        hint="Documentos registrados en la empresa actual."
+        hint="Registrados en la empresa actual."
+        icon={FileText}
+        tone="blue"
       />
       <MetricCard
         label="PDF generados"
         value={processedCount}
-        hint="Representaciones tributarias disponibles para descarga."
+        hint="Disponibles para descarga."
+        icon={CheckCircle2}
+        tone="emerald"
       />
       <MetricCard
         label="Tasa de error"
         value={`${dashboard?.errorRate ?? 0}%`}
-        hint="Incidencias detectadas en parsing o validacion."
+        hint="Incidencias detectadas en validación."
+        icon={AlertCircle}
+        tone="amber"
       />
     </section>
   );

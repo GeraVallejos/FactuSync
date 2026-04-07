@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
+import re
+import unicodedata
 from xml.etree import ElementTree as ET
 
 from enterprise_documents.dte.models import DTEModel, LineItem, Party, Reference, Totals
@@ -29,11 +31,23 @@ def _find_children(element: ET.Element | None, name: str) -> list[ET.Element]:
     return [child for child in element.iter() if _strip_namespace(child.tag) == name]
 
 
+def _sanitize_text(value: str) -> str:
+    cleaned = str(value or "").strip()
+    cleaned = cleaned.replace("\ufffd", "")
+    if "Ã" in cleaned or "Â" in cleaned:
+        try:
+            cleaned = cleaned.encode("latin-1").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+    cleaned = re.sub(r"(?<=\w)\?(?=\w)", "", cleaned)
+    return cleaned.strip()
+
+
 def _text(element: ET.Element | None, name: str) -> str | None:
     child = _find_child(element, name)
     if child is None or child.text is None:
         return None
-    return child.text.strip()
+    return _sanitize_text(child.text)
 
 
 def _decimal(value: str | None, default: str = "0") -> Decimal:

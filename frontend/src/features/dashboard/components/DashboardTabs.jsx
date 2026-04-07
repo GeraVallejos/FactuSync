@@ -1,27 +1,29 @@
+import { FileText, Settings } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@shared/lib";
 
 const tabs = [
-  { label: "Documentos", to: "/documentos" },
-  { label: "Configuracion", to: "/configuracion" },
+  { label: "Documentos", to: "/documentos", icon: FileText },
+  { label: "Configuración", to: "/configuracion", icon: Settings },
 ];
 
 export function DashboardTabs() {
   return (
-    <nav className="mt-5 flex flex-wrap gap-2">
+    <nav className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1">
       {tabs.map((tab) => (
         <NavLink
           key={tab.to}
           to={tab.to}
           className={({ isActive }) =>
             cn(
-              "rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition",
+              "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition",
               isActive
-                ? "border-emerald-900 bg-emerald-900 text-amber-100"
-                : "border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-50",
+                ? "bg-white text-emerald-700 shadow-sm"
+                : "text-slate-500 hover:bg-white hover:text-slate-700",
             )
           }
         >
+          <tab.icon size={16} />
           {tab.label}
         </NavLink>
       ))}

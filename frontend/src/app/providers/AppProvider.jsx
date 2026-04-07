@@ -48,6 +48,7 @@ export function AppProvider({ children }) {
     activeDocumentId: workspace.activeDocumentId,
     busy,
     dashboard: workspace.dashboard,
+    deleteDocument: (document) => workspace.deleteDocument(document, { reloadApp: auth.loadApp }),
     documents: workspace.documents,
     feedback,
     importDocument: (file) => workspace.importDocument(file, { reloadApp: auth.loadApp }),

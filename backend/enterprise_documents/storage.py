@@ -31,3 +31,14 @@ class DocumentStorage:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(content)
         return str(path)
+
+    def delete_document_assets(self, tenant_id: str, document_id: str) -> None:
+        xml_file = self.xml_path / tenant_id / f"{document_id}.xml"
+        if xml_file.exists():
+            xml_file.unlink()
+
+        pdf_directory = self.pdf_path / tenant_id
+        if pdf_directory.exists():
+            for pdf_file in pdf_directory.glob(f"{document_id}-v*.pdf"):
+                if pdf_file.is_file():
+                    pdf_file.unlink()

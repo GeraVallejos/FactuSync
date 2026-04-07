@@ -1,10 +1,10 @@
 export const statusTone = {
-  pdf_generado: "bg-emerald-100 text-emerald-800 border border-emerald-200",
-  con_error: "bg-red-100 text-red-700 border border-red-200",
-  en_cola: "bg-amber-100 text-amber-800 border border-amber-200",
-  procesando: "bg-sky-100 text-sky-700 border border-sky-200",
-  recibido: "bg-stone-100 text-stone-700 border border-stone-200",
-  valido: "bg-emerald-100 text-emerald-800 border border-emerald-200",
+  pdf_generado: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  con_error: "border-red-200 bg-red-50 text-red-700",
+  en_cola: "border-amber-200 bg-amber-50 text-amber-700",
+  procesando: "border-blue-200 bg-blue-50 text-blue-700",
+  recibido: "border-slate-200 bg-slate-100 text-slate-700",
+  valido: "border-indigo-200 bg-indigo-50 text-indigo-700",
 };
 
 export const statusLabel = {

@@ -274,6 +274,22 @@ class DocumentService:
     def get_document(self, tenant: Tenant, document_id: str) -> DocumentRecord:
         return DocumentRecord.objects.get(tenant=tenant, id=document_id)
 
+    def delete_document(self, tenant: Tenant, document: DocumentRecord, actor: str) -> None:
+        self.storage.delete_document_assets(tenant.code, str(document.id))
+        self.log(
+            tenant,
+            None,
+            "documento_eliminado",
+            actor,
+            {
+                "document_id": str(document.id),
+                "document_type": document.document_type,
+                "folio": document.folio,
+                "version": document.version,
+            },
+        )
+        document.delete()
+
     def metrics(self, tenant: Tenant) -> dict:
         grouped = DocumentRecord.objects.filter(tenant=tenant).values("status").annotate(total=Count("id"))
         by_status = {row["status"]: row["total"] for row in grouped}

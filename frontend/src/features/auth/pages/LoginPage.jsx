@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertCircle, Compass, Eye, EyeOff, Leaf, Loader2, Lock, Mail, ShieldCheck } from "lucide-react";
+import { AlertCircle, Compass, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck } from "lucide-react";
 import { useAuthContext } from "@app/providers";
 import { Field, TextInput } from "@shared/ui";
 
@@ -30,15 +30,15 @@ export function LoginPage() {
             className="rounded-[3rem] border border-white/65 bg-white/72 p-8 shadow-[0_30px_70px_rgba(2,44,34,0.12)] ring-1 ring-emerald-900/5 backdrop-blur-2xl sm:p-12"
             onSubmit={handleSubmit}
           >
-            <div className="mx-auto mb-8 flex h-20 w-20 items-center justify-center rounded-full border border-amber-200/40 bg-emerald-900 text-amber-200 shadow-2xl shadow-emerald-900/20 ring-4 ring-white">
-              <Leaf size={38} strokeWidth={1.6} />
+            <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-[1.75rem] border border-white/80 bg-white/80 p-4 shadow-2xl shadow-emerald-900/10 ring-4 ring-white">
+              <img src="/factysync.svg" alt="FactuSync" className="h-full w-full object-contain" />
             </div>
             <p className="text-center text-xs font-black uppercase tracking-[0.3em] text-emerald-700/70">
               Eldanor Software
             </p>
             <h1 className="mt-5 text-center font-serif text-5xl font-bold tracking-tight text-emerald-950 sm:text-6xl">
               FactuSync
-            </h1>          
+            </h1>
 
             {feedback?.message ? (
               <div className="mt-8 flex items-center gap-3 rounded-2xl border border-red-100 bg-red-50/85 px-4 py-3 text-red-800">

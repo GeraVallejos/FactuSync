@@ -24,7 +24,12 @@ export function FeedbackBanner({ feedback }) {
   const Icon = tone.icon;
 
   return (
-    <div className={cn("mb-6 flex items-center gap-3 rounded-[1.6rem] border px-5 py-4 shadow-sm", tone.container)}>
+    <div
+      className={cn(
+        "mb-6 flex items-center gap-3 rounded-[1.2rem] border border-white/60 px-5 py-4 shadow-sm backdrop-blur-sm",
+        tone.container,
+      )}
+    >
       <Icon size={18} className={cn("shrink-0", tone.iconClass)} />
       <p className="text-sm font-medium">{feedback?.message}</p>
     </div>

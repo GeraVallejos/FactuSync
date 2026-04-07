@@ -4,7 +4,7 @@ export const SelectInput = forwardRef(function SelectInput(props, ref) {
   return (
     <select
       ref={ref}
-      className="w-full rounded-[1.6rem] border border-emerald-100 bg-white/55 px-5 py-4 text-sm text-emerald-950 outline-none transition focus:border-emerald-600 focus:ring-8 focus:ring-emerald-50/70"
+      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
       {...props}
     />
   );

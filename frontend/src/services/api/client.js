@@ -5,6 +5,7 @@ const JSON_HEADERS = {
 let tenantContext = {
   tenantCode: "",
 };
+let refreshPromise = null;
 
 export function setTenantContext(nextTenantContext = {}) {
   tenantContext = {
@@ -12,8 +13,12 @@ export function setTenantContext(nextTenantContext = {}) {
   };
 }
 
-export async function request(path, options = {}) {
-  const response = await fetch(path, {
+export function getTenantContext() {
+  return tenantContext;
+}
+
+async function executeRequest(path, options = {}) {
+  return fetch(path, {
     credentials: "include",
     ...options,
     headers: {
@@ -22,6 +27,34 @@ export async function request(path, options = {}) {
       ...(options.headers || {}),
     },
   });
+}
+
+async function refreshSession() {
+  if (!refreshPromise) {
+    refreshPromise = fetch("/api/auth/refresh", {
+      method: "POST",
+      credentials: "include",
+    }).finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  const response = await refreshPromise;
+  if (!response.ok) {
+    const payload = await response.text();
+    throw new Error(payload || "Session refresh failed");
+  }
+}
+
+export async function request(path, options = {}) {
+  const { skipAuthRefresh = false, ...fetchOptions } = options;
+
+  let response = await executeRequest(path, fetchOptions);
+
+  if (!skipAuthRefresh && response.status === 401 && path !== "/api/auth/refresh") {
+    await refreshSession();
+    response = await executeRequest(path, fetchOptions);
+  }
 
   if (response.status === 204) {
     return null;

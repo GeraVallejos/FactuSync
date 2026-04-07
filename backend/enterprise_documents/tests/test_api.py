@@ -9,6 +9,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from enterprise_documents.models import AuditEvent, DocumentRecord, TaxServiceProfile, Tenant
 from enterprise_documents.dte.models import DTEModel, LineItem, Party, Totals
 from enterprise_documents.dte.validators import DTEValidator
+from enterprise_documents.pdf_renderer import PDFRenderer
 from enterprise_documents.services import DocumentService
 from enterprise_documents.sii import SIIAuthResult, SIIConfigurationError
 
@@ -102,6 +103,27 @@ def test_dashboard_and_reprocess_flow(api_client, tenant_headers, sample_xml_pat
 
 
 @pytest.mark.django_db(transaction=True)
+def test_document_can_be_deleted_and_assets_are_removed(api_client, tenant_headers, sample_xml_path):
+    payload = import_sample(api_client, tenant_headers, sample_xml_path).json()
+    document = DocumentRecord.objects.get(pk=payload["id"])
+    xml_path = Path(document.xml_storage_path)
+    pdf_path = Path(document.pdf_storage_path)
+
+    delete_response = api_client.delete(f"/api/documentos/{document.id}", **tenant_headers)
+    list_response = api_client.get("/api/documentos", **tenant_headers)
+    dashboard_response = api_client.get("/api/dashboard", **tenant_headers)
+
+    assert delete_response.status_code == 204
+    assert DocumentRecord.objects.filter(pk=document.id).exists() is False
+    assert xml_path.exists() is False
+    assert pdf_path.exists() is False
+    assert list_response.status_code == 200
+    assert list_response.json() == []
+    assert dashboard_response.status_code == 200
+    assert dashboard_response.json()["total_documents"] == 0
+
+
+@pytest.mark.django_db(transaction=True)
 def test_invalid_xml_returns_error_status(api_client, tenant_headers, invalid_xml_bytes):
     invalid_file = SimpleUploadedFile("broken.xml", invalid_xml_bytes, content_type="application/xml")
     response = api_client.post(
@@ -191,6 +213,35 @@ def test_standalone_user_can_use_document_api_without_headers(
     payload = import_response.json()
     document = DocumentRecord.objects.get(pk=payload["id"])
     assert document.tenant.code == "standalone-main"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_standalone_user_can_download_pdf_with_tenant_query_param(
+    api_client,
+    standalone_user,
+    standalone_membership,
+    sample_xml_path,
+):
+    login_response = api_client.post(
+        "/api/auth/login",
+        {"username": standalone_user.username, "password": "secret123"},
+        format="json",
+    )
+    assert login_response.status_code == 200
+
+    with sample_xml_path.open("rb") as xml_file:
+        import_response = api_client.post(
+            "/api/documentos/importar",
+            {"file": xml_file},
+            format="multipart",
+        )
+
+    document_id = import_response.json()["id"]
+    pdf_response = api_client.get(f"/api/documentos/{document_id}/pdf?tenant=standalone-main")
+
+    assert pdf_response.status_code == 200
+    assert pdf_response["Content-Type"] == "application/pdf"
+    pdf_response.close()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -515,3 +566,52 @@ def test_validator_allows_real_world_totals_with_extra_components():
     errors = DTEValidator().validate(document)
 
     assert errors == []
+
+
+def test_pdf_renderer_builds_structured_invoice_and_adds_pages_for_long_documents():
+    document = DTEModel(
+        document_type="33",
+        folio="564",
+        issue_date="2026-04-07",
+        issuer=Party(
+            rut="76111111-1",
+            name="Comercial Demo SPA",
+            giro="Servicios tecnológicos",
+            address="Av. Principal 1234",
+            commune="Providencia",
+            city="Santiago",
+        ),
+        receiver=Party(
+            rut="76999999-9",
+            name="Cliente de Ejemplo Limitada",
+            giro="Administración",
+            address="Los Alerces 778",
+            commune="Las Condes",
+            city="Santiago",
+        ),
+        totals=Totals(
+            net_amount=Decimal("125000"),
+            exempt_amount=Decimal("0"),
+            vat_amount=Decimal("23750"),
+            total_amount=Decimal("148750"),
+        ),
+        line_items=[
+            LineItem(
+                line_number=index + 1,
+                description=f"Servicio mensual de soporte y operación tributaria para sucursal {index + 1}",
+                quantity=Decimal("1"),
+                unit_price=Decimal("5000"),
+                line_amount=Decimal("5000"),
+            )
+            for index in range(32)
+        ],
+    )
+
+    pdf_bytes = PDFRenderer().render(document, brand_name="ValCri ERP", brand_color="#0F5B3F")
+    pdf_text = pdf_bytes.decode("latin-1", errors="ignore")
+
+    assert "FACTURA ELECTRONICA" in pdf_text
+    assert "DETALLE DEL DOCUMENTO" in pdf_text
+    assert "RESUMEN DE TOTALES" in pdf_text
+    assert "Cliente de Ejemplo Limitada" in pdf_text
+    assert pdf_text.count("/Type /Page ") >= 2

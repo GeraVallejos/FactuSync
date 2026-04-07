@@ -73,6 +73,25 @@ export function useWorkspaceState({ setBusy, setFeedback }) {
     }
   }
 
+  async function deleteDocument(document, { reloadApp }) {
+    setBusy(true);
+    setActiveDocumentId(document.id);
+    setFeedback(null);
+
+    try {
+      await api.deleteDocument(document.id);
+      setFeedback(
+        buildFeedback(`Documento ${document.referenceLabel || document.id} eliminado correctamente.`, "success"),
+      );
+      await reloadApp({ clearFeedback: false });
+    } catch (error) {
+      setFeedback(buildFeedback(error.message, "error"));
+      setBusy(false);
+    } finally {
+      setActiveDocumentId("");
+    }
+  }
+
   async function syncSii({ reloadApp }) {
     setBusy(true);
     setFeedback(null);
@@ -124,6 +143,7 @@ export function useWorkspaceState({ setBusy, setFeedback }) {
   return {
     activeDocumentId,
     dashboard,
+    deleteDocument,
     documents,
     importDocument,
     loadWorkspace,

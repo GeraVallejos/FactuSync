@@ -38,6 +38,8 @@ class TenantScopedAPIView(APIView):
 
     def get_tenant(self, request):
         tenant_code = request.headers.get("X-Tenant-Id")
+        if not tenant_code and getattr(request.user, "is_authenticated", False):
+            tenant_code = request.query_params.get("tenant")
         erp_tenant_id = request.headers.get("X-ERP-Tenant-Id")
         erp_company_id = request.headers.get("X-ERP-Company-Id")
         return self.service.resolve_tenant(
@@ -204,6 +206,20 @@ class DocumentDetailView(TenantScopedAPIView):
         except DocumentRecord.DoesNotExist:
             return Response({"detail": "Documento no encontrado."}, status=status.HTTP_404_NOT_FOUND)
         return Response(DocumentRecordSerializer(document).data)
+
+    def delete(self, request, document_id: str):
+        tenant = self.get_tenant(request)
+        if tenant is None:
+            return Response(
+                {"detail": "Debe enviar X-Tenant-Id o el contexto ERP (X-ERP-Tenant-Id/X-ERP-Company-Id)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            document = self.service.get_document(tenant, document_id)
+        except DocumentRecord.DoesNotExist:
+            return Response({"detail": "Documento no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        self.service.delete_document(tenant, document, self.get_actor(request))
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class DocumentPDFView(TenantScopedAPIView):

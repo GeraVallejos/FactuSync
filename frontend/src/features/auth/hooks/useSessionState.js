@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { mapSession } from "@features/auth/mappers";
 import { facturaSiiApi as api, setTenantContext } from "@services/api";
 import { buildFeedback } from "@shared/lib";
@@ -50,6 +50,30 @@ export function useSessionState({ setBusy, setFeedback, loadWorkspace, resetWork
     resetWorkspace();
     setFeedback(null);
   }
+
+  useEffect(() => {
+    if (!session) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(async () => {
+      if (document.visibilityState === "hidden") {
+        return;
+      }
+
+      try {
+        await api.refresh();
+      } catch {
+        setSession(null);
+        setTenantContext();
+        resetWorkspace();
+      }
+    }, 10 * 60 * 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [session, resetWorkspace]);
 
   return {
     isAuthenticated: Boolean(session),

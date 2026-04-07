@@ -49,7 +49,7 @@ export function mapDocument(payload) {
   return {
     id,
     referenceLabel: formatFallback(payload?.folio, id),
-    title: `${friendlyDocumentType} (${documentType}) ${formatFallback(payload?.folio, "Sin folio")}`,
+    title: `${friendlyDocumentType} ${formatFallback(payload?.folio, "Sin folio")}`,
     sourceLabel: `${friendlySource} - v${formatFallback(payload?.version, "1")}`,
     issuerRut: formatFallback(payload?.issuer_rut, "Sin emisor"),
     receiverRut: formatFallback(payload?.receiver_rut, "Sin receptor"),
