@@ -1,0 +1,30 @@
+[project]
+name = "factura-sii-backend"
+version = "0.1.0"
+description = "Servicio enterprise para ingestión, normalización y representación PDF de DTE del SII."
+requires-python = ">=3.11"
+dependencies = [
+  "celery[redis]>=5.4.0",
+  "django>=5.2.0",
+  "djangorestframework>=3.16.0",
+  "PyJWT>=2.9.0",
+  "requests>=2.32.0",
+  "signxml>=3.2.0",
+  "pytest>=8.3.0",
+  "pytest-django>=4.9.0",
+  "python-dotenv>=1.1.0",
+  "pymysql>=1.1.1",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["config*", "enterprise_documents*"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-q -p no:cacheprovider"
+testpaths = ["enterprise_documents"]

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<DTE version="1.0">
+  <Documento ID="F33T1">
+    <Encabezado>
+      <IdDoc>
+        <TipoDTE>33</TipoDTE>
+        <Folio>1001</Folio>
+        <FchEmis>2026-04-06</FchEmis>
+      </IdDoc>
+      <Emisor>
+        <RUTEmisor>76111111-1</RUTEmisor>
+        <RznSoc>Proveedor Demo SPA</RznSoc>
+      </Emisor>
+      <Receptor>
+        <RUTRecep>76999999-9</RUTRecep>
+        <RznSocRecep>Empresa Cliente SPA</RznSocRecep>
+      </Receptor>
+      <Totales>
+        <MntNeto>10000</MntNeto>
+        <IVA>1900</IVA>
+        <MntTotal>11900</MntTotal>
+      </Totales>
+    </Encabezado>
+    <Detalle>
+      <NroLinDet>1</NroLinDet>
+      <NmbItem>Servicio mensual</NmbItem>
+      <QtyItem>1</QtyItem>
+      <PrcItem>10000</PrcItem>
+      <MontoItem>11900</MontoItem>
+    </Detalle>
+  </Documento>
+</DTE>
