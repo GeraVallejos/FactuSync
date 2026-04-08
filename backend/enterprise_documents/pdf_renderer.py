@@ -68,10 +68,11 @@ class InvoiceLayout:
         self._draw_footer()
 
     def _draw_top_header(self) -> None:
-        left_width = 372
+        left_width = 360
         right_width = CONTENT_WIDTH - left_width - 14
         right_x = MARGIN_X + left_width + 14
         top_y = self.y
+        is_exempt = self.document.document_type in ("34", "41")
 
         brand_x = MARGIN_X
         self.canvas.text(brand_x, top_y - 8, self.document.issuer.name or self.brand_name, font="F2", size=16, color=TEXT_PRIMARY)
@@ -96,11 +97,12 @@ class InvoiceLayout:
             )
             current_y -= consumed * 10 + 1
 
+        rect_height = 85 if is_exempt else 70
         self.canvas.rounded_rect(
             right_x,
-            top_y - 70,
+            top_y - rect_height,
             right_width,
-            70,
+            rect_height,
             radius=6,
             fill_color=WHITE,
             stroke_color=ACCENT_RED,
@@ -119,11 +121,13 @@ class InvoiceLayout:
             color=ACCENT_RED,
             line_height=9,
         )
-        self._draw_text_centered(center_x, top_y - 42, f"Nro: {self.document.folio}", font="F2", size=8.6, color=ACCENT_RED)
+        folio_y = top_y - 50 if is_exempt else top_y - 42
+        self._draw_text_centered(center_x, folio_y, f"Nro: {self.document.folio}", font="F2", size=8.6, color=ACCENT_RED)
         sii_label = f"S.I.I. - {self.document.issuer.city or 'SANTIAGO'}"
+        sii_y = top_y - 64 if is_exempt else top_y - 56
         self._draw_wrapped_text_centered(
             center_x,
-            top_y - 56,
+            sii_y,
             sii_label,
             width=right_width - 28,
             font="F2",
@@ -132,7 +136,8 @@ class InvoiceLayout:
             line_height=9,
         )
 
-        self.y -= 92
+        y_offset = 105 if is_exempt else 92
+        self.y -= y_offset
 
     def _draw_client_summary(self) -> None:
         self._ensure_space(112, allow_table_header=False)

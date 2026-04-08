@@ -3,6 +3,32 @@ import { mapSession } from "@features/auth/mappers";
 import { facturaSiiApi as api, setTenantContext } from "@services/api";
 import { buildFeedback } from "@shared/lib";
 
+function resolveLoginErrorMessage(error) {
+  const rawMessage = String(error?.message || "").trim();
+  const normalizedMessage = rawMessage.toLowerCase();
+
+  if (
+    !rawMessage ||
+    normalizedMessage === "request failed" ||
+    normalizedMessage.includes("failed to fetch") ||
+    normalizedMessage.includes("networkerror")
+  ) {
+    return "No fue posible iniciar sesion en este momento. Revisa tus credenciales e intenta nuevamente.";
+  }
+
+  if (
+    normalizedMessage.includes("refresh token") ||
+    normalizedMessage.includes("unauthorized") ||
+    normalizedMessage.includes("authentication credentials") ||
+    normalizedMessage.includes("invalid") ||
+    normalizedMessage.includes("no active account")
+  ) {
+    return "Usuario o contrasena incorrectos. Intenta nuevamente.";
+  }
+
+  return "No fue posible iniciar sesion. Verifica tus datos e intenta nuevamente.";
+}
+
 export function useSessionState({ setBusy, setFeedback, loadWorkspace, resetWorkspace, setInitialized }) {
   const [session, setSession] = useState(null);
 
@@ -38,7 +64,7 @@ export function useSessionState({ setBusy, setFeedback, loadWorkspace, resetWork
       await api.login(form.username, form.password);
       await loadApp({ clearFeedback: false });
     } catch (error) {
-      setFeedback(buildFeedback(error.message, "error"));
+      setFeedback(buildFeedback(resolveLoginErrorMessage(error), "error"));
       setBusy(false);
     }
   }

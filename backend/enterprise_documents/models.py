@@ -171,3 +171,21 @@ class TenantMembership(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id} - {self.tenant.code} ({self.role})"
+
+
+class RevokedToken(models.Model):
+    class TokenKind(models.TextChoices):
+        REFRESH = "refresh", "Refresh"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="revoked_tokens")
+    jti = models.CharField(max_length=64, unique=True)
+    token_type = models.CharField(max_length=16, choices=TokenKind.choices, default=TokenKind.REFRESH)
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["token_type", "expires_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.token_type}:{self.jti}"

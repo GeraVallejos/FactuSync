@@ -69,6 +69,15 @@ export function DocumentsSection({ activeDocumentId, busy, documents, onDeleteDo
           </div>
         ),
       }),
+      columnHelper.accessor("issueDateLabel", {
+        header: () => (
+          <span className="inline-flex items-center gap-2">
+            Emitida
+            <ArrowUpDown size={12} />
+          </span>
+        ),
+        cell: ({ getValue }) => <span className="text-sm tracking-tight text-slate-700">{getValue()}</span>,
+      }),
       columnHelper.accessor("amountLabel", {
         header: () => (
           <span className="inline-flex items-center justify-end gap-2">

@@ -17,6 +17,7 @@ import { formatCurrency, formatFallback, joinMessages } from "@shared/lib";
  * @property {string} issuerRut
  * @property {string} receiverRut
  * @property {string} amountLabel
+ * @property {string} issueDateLabel
  * @property {string} status
  * @property {string} statusLabel
  * @property {boolean} canReprocess
@@ -45,6 +46,7 @@ export function mapDocument(payload) {
   const errorDetail = formatFallback(payload?.last_error, joinMessages(payload?.validation_errors, ""));
   const friendlyDocumentType = documentTypeLabel[documentType] || "Documento tributario";
   const friendlySource = sourceLabel[payload?.source] || "Origen desconocido";
+  const issueDate = payload?.issue_date ? formatIssueDate(payload.issue_date) : "No informada";
 
   return {
     id,
@@ -54,6 +56,7 @@ export function mapDocument(payload) {
     issuerRut: formatFallback(payload?.issuer_rut, "Sin emisor"),
     receiverRut: formatFallback(payload?.receiver_rut, "Sin receptor"),
     amountLabel: formatCurrency(payload?.total_amount),
+    issueDateLabel: issueDate,
     status,
     statusLabel: statusLabel[status] || status,
     canReprocess: status === "en_cola" || status === "con_error",
@@ -62,6 +65,15 @@ export function mapDocument(payload) {
     errorDetail,
     raw: payload,
   };
+}
+
+function formatIssueDate(dateString) {
+  if (!dateString) return "No informada";
+  const parts = dateString.split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateString;
 }
 
 /**

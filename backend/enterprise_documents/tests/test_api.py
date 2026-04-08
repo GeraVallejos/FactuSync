@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.cache import cache
 
 from enterprise_documents.models import AuditEvent, DocumentRecord, TaxServiceProfile, Tenant
 from enterprise_documents.dte.models import DTEModel, LineItem, Party, Totals
@@ -12,6 +13,7 @@ from enterprise_documents.dte.validators import DTEValidator
 from enterprise_documents.pdf_renderer import PDFRenderer
 from enterprise_documents.services import DocumentService
 from enterprise_documents.sii import SIIAuthResult, SIIConfigurationError
+from enterprise_documents.throttling import DocumentImportRateThrottle, LoginRateThrottle, SIISyncRateThrottle
 
 
 def import_sample(api_client, tenant_headers, sample_xml_path):
@@ -29,7 +31,20 @@ def test_health_endpoint_returns_ok(api_client):
     response = api_client.get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    payload = response.json()
+    assert payload["status"] in {"ok", "degraded"}
+    assert "checks" in payload
+    assert payload["checks"]["database"] in {"ok", "error"}
+    assert payload["checks"]["storage"] in {"ok", "error"}
+    assert payload["checks"]["celery"] in {"ok", "error"}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_health_echoes_request_id_header(api_client):
+    response = api_client.get("/api/health", HTTP_X_REQUEST_ID="trace-id-123")
+
+    assert response.status_code == 200
+    assert response["X-Request-Id"] == "trace-id-123"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -189,6 +204,35 @@ def test_jwt_http_only_login_and_me(api_client, standalone_user, standalone_memb
 
 
 @pytest.mark.django_db(transaction=True)
+def test_login_is_rate_limited(api_client, standalone_user, standalone_membership, monkeypatch):
+    rates = dict(LoginRateThrottle.THROTTLE_RATES)
+    rates["login"] = "2/minute"
+    monkeypatch.setattr(LoginRateThrottle, "THROTTLE_RATES", rates, raising=False)
+    cache.clear()
+
+    first = api_client.post(
+        "/api/auth/login",
+        {"username": standalone_user.username, "password": "bad-password"},
+        format="json",
+    )
+    second = api_client.post(
+        "/api/auth/login",
+        {"username": standalone_user.username, "password": "bad-password"},
+        format="json",
+    )
+    third = api_client.post(
+        "/api/auth/login",
+        {"username": standalone_user.username, "password": "bad-password"},
+        format="json",
+    )
+
+    assert first.status_code == 401
+    assert second.status_code == 401
+    assert third.status_code == 429
+    cache.clear()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_standalone_user_can_use_document_api_without_headers(
     api_client,
     standalone_user,
@@ -213,6 +257,44 @@ def test_standalone_user_can_use_document_api_without_headers(
     payload = import_response.json()
     document = DocumentRecord.objects.get(pk=payload["id"])
     assert document.tenant.code == "standalone-main"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_document_import_is_rate_limited(
+    api_client,
+    standalone_user,
+    standalone_membership,
+    sample_xml_path,
+    monkeypatch,
+):
+    rates = dict(DocumentImportRateThrottle.THROTTLE_RATES)
+    rates["document_import"] = "1/minute"
+    monkeypatch.setattr(DocumentImportRateThrottle, "THROTTLE_RATES", rates, raising=False)
+    cache.clear()
+
+    login_response = api_client.post(
+        "/api/auth/login",
+        {"username": standalone_user.username, "password": "secret123"},
+        format="json",
+    )
+    assert login_response.status_code == 200
+
+    with sample_xml_path.open("rb") as xml_file:
+        first = api_client.post(
+            "/api/documentos/importar",
+            {"file": xml_file},
+            format="multipart",
+        )
+    with sample_xml_path.open("rb") as xml_file:
+        second = api_client.post(
+            "/api/documentos/importar",
+            {"file": xml_file},
+            format="multipart",
+        )
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    cache.clear()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -257,6 +339,62 @@ def test_logout_clears_session_cookies(api_client, standalone_user, standalone_m
     assert logout_response.status_code == 200
     me_response = api_client.get("/api/auth/me")
     assert me_response.status_code == 403
+
+
+@pytest.mark.django_db(transaction=True)
+def test_refresh_rotates_token_and_revokes_previous_refresh(
+    api_client,
+    standalone_user,
+    standalone_membership,
+    settings,
+    monkeypatch,
+):
+    rates = dict(LoginRateThrottle.THROTTLE_RATES)
+    rates["login"] = "20/minute"
+    monkeypatch.setattr(LoginRateThrottle, "THROTTLE_RATES", rates, raising=False)
+
+    login_response = api_client.post(
+        "/api/auth/login",
+        {"username": standalone_user.username, "password": "secret123"},
+        format="json",
+    )
+    assert login_response.status_code == 200
+
+    old_refresh = login_response.cookies[settings.JWT_REFRESH_COOKIE_NAME].value
+
+    refresh_response = api_client.post("/api/auth/refresh")
+    assert refresh_response.status_code == 200
+    new_refresh = refresh_response.cookies[settings.JWT_REFRESH_COOKIE_NAME].value
+    assert old_refresh != new_refresh
+
+    api_client.cookies[settings.JWT_REFRESH_COOKIE_NAME] = old_refresh
+    revoked_refresh_response = api_client.post("/api/auth/refresh")
+    assert revoked_refresh_response.status_code == 401
+    assert revoked_refresh_response.json()["detail"] == "Refresh token revocado."
+
+
+@pytest.mark.django_db(transaction=True)
+def test_logout_revokes_refresh_token(
+    api_client,
+    standalone_user,
+    standalone_membership,
+    settings,
+):
+    login_response = api_client.post(
+        "/api/auth/login",
+        {"username": standalone_user.username, "password": "secret123"},
+        format="json",
+    )
+    assert login_response.status_code == 200
+
+    refresh_token = login_response.cookies[settings.JWT_REFRESH_COOKIE_NAME].value
+    logout_response = api_client.post("/api/auth/logout")
+    assert logout_response.status_code == 200
+
+    api_client.cookies[settings.JWT_REFRESH_COOKIE_NAME] = refresh_token
+    refresh_response = api_client.post("/api/auth/refresh")
+    assert refresh_response.status_code == 401
+    assert refresh_response.json()["detail"] == "Refresh token revocado."
 
 
 @pytest.mark.django_db(transaction=True)
@@ -461,6 +599,52 @@ def test_sii_sync_endpoint_runs_auth_flow_when_celery_is_eager(
         tenant=standalone_membership.tenant,
         event_type="sii_sync_autenticado",
     ).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_sii_sync_is_rate_limited(
+    api_client,
+    standalone_user,
+    standalone_membership,
+    monkeypatch,
+):
+    rates = dict(SIISyncRateThrottle.THROTTLE_RATES)
+    rates["sii_sync"] = "1/minute"
+    monkeypatch.setattr(SIISyncRateThrottle, "THROTTLE_RATES", rates, raising=False)
+    cache.clear()
+
+    login_response = api_client.post(
+        "/api/auth/login",
+        {"username": standalone_user.username, "password": "secret123"},
+        format="json",
+    )
+    assert login_response.status_code == 200
+
+    profile = TaxServiceProfile.objects.create(
+        tenant=standalone_membership.tenant,
+        sii_rut="76999999-9",
+        sync_enabled=True,
+    )
+
+    def fake_authenticate(self, current_profile):
+        assert current_profile.id == profile.id
+        return SIIAuthResult(
+            environment="certificacion",
+            host="maullin.sii.cl",
+            seed="654321",
+            token="SYNC1234TOKEN8888",
+            seed_endpoint="https://maullin.sii.cl/DTEWS/CrSeed.jws",
+            token_endpoint="https://maullin.sii.cl/DTEWS/GetTokenFromSeed.jws",
+        )
+
+    monkeypatch.setattr(DocumentService, "_authenticate_sii", fake_authenticate)
+
+    first = api_client.post("/api/sii/sync")
+    second = api_client.post("/api/sii/sync")
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    cache.clear()
 
 
 @pytest.mark.django_db(transaction=True)

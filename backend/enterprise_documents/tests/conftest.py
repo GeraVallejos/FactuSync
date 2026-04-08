@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 import shutil
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from rest_framework.test import APIClient
 
 from enterprise_documents.models import Tenant, TenantMembership
@@ -23,6 +25,20 @@ def isolated_storage(settings):
     TEST_STORAGE_ROOT.mkdir(parents=True, exist_ok=True)
     yield TEST_STORAGE_ROOT
     shutil.rmtree(TEST_STORAGE_ROOT, ignore_errors=True)
+
+
+@pytest.fixture(autouse=True)
+def isolated_cache():
+    cache.clear()
+    yield
+    cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def isolated_rest_framework_settings(settings):
+    original = copy.deepcopy(settings.REST_FRAMEWORK)
+    yield
+    settings.REST_FRAMEWORK = original
 
 
 @pytest.fixture

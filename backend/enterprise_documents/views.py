@@ -23,9 +23,18 @@ from enterprise_documents.serializers import (
     TaxServiceProfileSerializer,
     TenantSerializer,
 )
-from enterprise_documents.auth_tokens import TokenType, build_token, decode_token
+from enterprise_documents.auth_tokens import (
+    TokenType,
+    build_token,
+    decode_token,
+    is_token_revoked,
+    purge_expired_revoked_tokens,
+    revoke_refresh_payload,
+)
 from enterprise_documents.services import DocumentService
+from enterprise_documents.throttling import DocumentImportRateThrottle, LoginRateThrottle, SIISyncRateThrottle
 from enterprise_documents.sii import SIIAuthError, SIIClientError, SIIConfigurationError
+from enterprise_documents.health import health_snapshot
 import jwt
 
 
@@ -58,14 +67,16 @@ class HealthView(APIView):
     permission_classes = []
 
     def get(self, request):
-        return Response({"status": "ok"})
+        return Response(health_snapshot())
 
 
 class LoginView(APIView):
     authentication_classes = []
     permission_classes = []
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
+        purge_expired_revoked_tokens()
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         service = DocumentService()
@@ -82,6 +93,7 @@ class LoginView(APIView):
 class RefreshView(APIView):
     authentication_classes = []
     permission_classes = []
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         raw_refresh = request.COOKIES.get(settings.JWT_REFRESH_COOKIE_NAME)
@@ -91,6 +103,11 @@ class RefreshView(APIView):
             payload = decode_token(raw_refresh, TokenType.REFRESH)
         except jwt.InvalidTokenError:
             return Response({"detail": "Refresh token invalido."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if is_token_revoked(payload):
+            return Response({"detail": "Refresh token revocado."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        revoke_refresh_payload(payload)
 
         response = Response({"refreshed": True}, status=status.HTTP_200_OK)
         _set_auth_cookies(response, int(payload["sub"]))
@@ -102,6 +119,14 @@ class LogoutView(APIView):
     permission_classes = []
 
     def post(self, request):
+        raw_refresh = request.COOKIES.get(settings.JWT_REFRESH_COOKIE_NAME)
+        if raw_refresh:
+            try:
+                payload = decode_token(raw_refresh, TokenType.REFRESH)
+                revoke_refresh_payload(payload)
+            except jwt.InvalidTokenError:
+                pass
+
         logout(request)
         response = Response({"logged_out": True}, status=status.HTTP_200_OK)
         response.delete_cookie(settings.JWT_ACCESS_COOKIE_NAME)
@@ -158,6 +183,8 @@ class CurrentTaxProfileView(TenantScopedAPIView):
 
 
 class DocumentImportView(TenantScopedAPIView):
+    throttle_classes = [DocumentImportRateThrottle]
+
     def post(self, request):
         tenant = self.get_tenant(request)
         if tenant is None:
@@ -299,6 +326,8 @@ class DashboardView(TenantScopedAPIView):
 
 
 class SIISyncView(TenantScopedAPIView):
+    throttle_classes = [SIISyncRateThrottle]
+
     def post(self, request):
         tenant = self.get_tenant(request)
         if tenant is None:
@@ -316,6 +345,7 @@ class SIISyncView(TenantScopedAPIView):
 
 class SIITestAuthView(TenantScopedAPIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [SIISyncRateThrottle]
 
     def post(self, request):
         tenant = self.get_tenant(request)
