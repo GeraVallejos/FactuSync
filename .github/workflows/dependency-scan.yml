@@ -28,11 +28,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install pip-audit
 
-      - name: Install project dependencies
-        run: pip install -r requirements-ci.txt
+      - name: Install third-party dependencies
+        run: |
+          python -c "
+          import tomllib, subprocess, sys
+          with open('pyproject.toml', 'rb') as f:
+              deps = tomllib.load(f)['project']['dependencies']
+          subprocess.check_call([sys.executable, '-m', 'pip', 'install'] + deps)
+          "
 
       - name: Audit python dependencies
-        run: pip-audit --skip-editable --strict
+        run: pip-audit --strict
 
   npm-dependency-scan:
     name: NPM Dependency Scan
