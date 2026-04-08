@@ -73,6 +73,35 @@ describe("api client", () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
+  it("also refreshes and retries when the backend responds with 403", async () => {
+    const { request } = await import("./client");
+
+    fetch
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ detail: "Authentication credentials were not provided." }), {
+          status: 403,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ refreshed: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ total_documents: 7 }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+    const payload = await request("/api/dashboard");
+
+    expect(payload).toEqual({ total_documents: 7 });
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
   it("surfaces backend detail when refresh cannot recover the request", async () => {
     const { request } = await import("./client");
 

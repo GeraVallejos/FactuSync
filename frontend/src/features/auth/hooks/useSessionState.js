@@ -44,7 +44,11 @@ export function useSessionState({ setBusy, setFeedback, loadWorkspace, resetWork
   }
 
   async function logout() {
-    await api.logout();
+    try {
+      await api.logout();
+    } catch {
+      // If the session already expired, we still want to clear local auth state.
+    }
     setSession(null);
     setTenantContext();
     resetWorkspace();

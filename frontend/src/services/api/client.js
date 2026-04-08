@@ -51,7 +51,7 @@ export async function request(path, options = {}) {
 
   let response = await executeRequest(path, fetchOptions);
 
-  if (!skipAuthRefresh && response.status === 401 && path !== "/api/auth/refresh") {
+  if (!skipAuthRefresh && (response.status === 401 || response.status === 403) && path !== "/api/auth/refresh") {
     await refreshSession();
     response = await executeRequest(path, fetchOptions);
   }

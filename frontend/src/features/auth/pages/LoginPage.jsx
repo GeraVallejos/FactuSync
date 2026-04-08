@@ -37,7 +37,7 @@ export function LoginPage() {
               Eldanor Software
             </p>
             <h1 className="mt-5 text-center font-serif text-5xl font-bold tracking-tight text-emerald-950 sm:text-6xl">
-              FactuSync
+              Factu<span className="text-emerald-600">Sync</span>
             </h1>
 
             {feedback?.message ? (
@@ -53,7 +53,7 @@ export function LoginPage() {
                   icon={Mail}
                   value={form.username}
                   onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))}
-                  placeholder="tu usuario"
+                  placeholder="Usuario"
                   autoComplete="username"
                 />
               </Field>
@@ -67,7 +67,7 @@ export function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     value={form.password}
                     onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
-                    placeholder="Tu contraseña"
+                    placeholder="Contraseña"
                     autoComplete="current-password"
                     className="w-full rounded-[1.6rem] border border-emerald-100 bg-white/55 py-4 pl-13 pr-13 text-sm text-emerald-950 outline-none transition focus:border-emerald-600 focus:ring-8 focus:ring-emerald-50/70"
                   />

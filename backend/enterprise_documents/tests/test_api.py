@@ -260,6 +260,30 @@ def test_logout_clears_session_cookies(api_client, standalone_user, standalone_m
 
 
 @pytest.mark.django_db(transaction=True)
+def test_logout_still_clears_cookies_when_access_cookie_is_invalid(
+    api_client,
+    standalone_user,
+    standalone_membership,
+    settings,
+):
+    login_response = api_client.post(
+        "/api/auth/login",
+        {"username": standalone_user.username, "password": "secret123"},
+        format="json",
+    )
+    assert login_response.status_code == 200
+
+    api_client.cookies[settings.JWT_ACCESS_COOKIE_NAME] = "expired-or-invalid-token"
+
+    logout_response = api_client.post("/api/auth/logout")
+
+    assert logout_response.status_code == 200
+    assert logout_response.json()["logged_out"] is True
+    assert logout_response.cookies[settings.JWT_ACCESS_COOKIE_NAME].value == ""
+    assert logout_response.cookies[settings.JWT_REFRESH_COOKIE_NAME].value == ""
+
+
+@pytest.mark.django_db(transaction=True)
 def test_standalone_can_read_and_update_current_tenant_and_tax_profile(
     api_client,
     standalone_user,

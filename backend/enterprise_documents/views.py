@@ -98,7 +98,8 @@ class RefreshView(APIView):
 
 
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+    authentication_classes = []
+    permission_classes = []
 
     def post(self, request):
         logout(request)
